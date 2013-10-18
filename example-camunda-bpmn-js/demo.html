@@ -1,0 +1,144 @@
+<html>
+<head>
+  <title>camunda-bpmn.js demo</title>
+
+  <style type="text/css">
+    .highlight  {
+      -webkit-box-shadow: 0px 0px 35px 5px rgba(85, 255, 13, 1); /* WebKit */
+      -moz-box-shadow: 0px 0px 35px 5px rgba(85, 255, 13, 1); /* Firefox */
+      box-shadow: 0px 0px 35px 5px rgba(85, 255, 13, 1); /* Standard */
+      border-radius: 5px;
+    }
+
+    .center {
+      text-align: middle;
+      font-weight: bold;
+
+      cursor: help;
+    }
+  </style>
+
+  <script src="lib/require/require.js"></script>
+
+  <script>
+    require({
+      baseUrl: "./",
+      paths: {
+        'jquery' : 'lib/jquery/jquery-1.7.2.min',
+        'bpmn/Bpmn' : 'build/bpmn.min',
+      },
+      packages: [
+        { name: "dojo", location: "lib/dojo/dojo" },
+        { name: "dojox", location: "lib/dojo/dojox"},
+      ]
+    });
+  </script>
+</head>
+<body>
+  <p>
+    <label>Diagram Name:</label>
+    <input type="text" id="processName" value="complex" />
+  </p>
+
+  <p>
+    Try <code>complex</code>, <code>markers</code>, <code>subprocess_event</code>.
+  </p>
+
+  <p>
+    <label>Zoom</label>
+    <button data-zoom-button>0.5</button>
+    <button data-zoom-button>0.8</button>
+    <button data-zoom-button>1</button>
+    <button data-zoom-button>2</button>
+  </p>
+
+
+  <div id="diagram"></div>
+
+  <p id="messages"></p>
+
+  <script>
+    function debounce(fn, timeout) {
+      var timer;
+
+      return function() {
+        if (timer) {
+          clearTimeout(timer);
+        }
+        
+        var self = this;
+        var args = Array.prototype.slice.call(arguments);
+
+        timer = setTimeout(function() {
+          fn.apply(self, arguments);
+        }, timeout);
+      };
+    }
+
+    var ANNOTATE_TYPES = [
+        "callActivity","task", "manualTask", "serviceTask", 
+        "scriptTask", "userTask", "sendTask", "recieveTask", 
+        "businessRuleTask", "startEvent", "endEvent",  
+        "intermediateThrowEvent", "intermediateCatchEvent", 
+        "boundaryEvent" ];
+
+    require(["bpmn/Bpmn", "jquery"], function(Bpmn, $) {
+      var bpmn = new Bpmn();
+      var zoom = 1;
+
+      function renderDiagram(name) {
+        bpmn.clear();
+
+        bpmn.renderUrl("bpmn/" + name + ".bpmn", {
+          diagramElement : "diagram",
+          overlayHtml : '<div style="position: relative; top:100%"></div>'
+        }).then(function (bpmn) {
+          bpmn.zoom(zoom);
+
+          // iterate over all rendered bpmn elements
+          $.each(bpmn.bpmnElements, function(key, val) {
+            var element = val.element, 
+                type = element.type,
+                id = element.id;
+
+            if (ANNOTATE_TYPES.indexOf(element.type) != -1) {
+              bpmn
+                .annotation(id)
+                  .addClasses(["highlight", "center" ])
+                  .addDiv('<span title="' + id + '">(?)</span>');
+            }
+          });
+        }, function(error) {
+          $("#messages").text("error opening diagram " + name);
+
+          setTimeout(function() {
+            $("#messages").empty();
+          }, 1000);
+        });
+      }
+
+      function zoomDiagram(factor) {
+        zoom = factor;
+
+        if (bpmn && bpmn.isRendered()) {
+          bpmn.zoom(zoom);
+        }
+      }
+
+      $("#processName").keypress(debounce(function(event) {
+        var e = $(this);
+        var name = e.val();
+
+        renderDiagram(name);
+      }, 500));
+
+      $("[data-zoom-button]").click(function(event) {
+        var e = $(this);
+        zoomDiagram(parseFloat(e.text()));
+      });
+
+      renderDiagram("complex");
+    });
+  </script>
+</body>
+</html>
